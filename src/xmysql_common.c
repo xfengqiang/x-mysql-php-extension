@@ -18,7 +18,10 @@
 
 /* $Id$ */
 
+#include "php_ini.h"
+#include "ext/standard/php_array.h"
 #include "xmysql_common.h"
+
 
 zval *x_hash_get_path(zval *data, char *path, int path_length) {
 	zval *ret = data;

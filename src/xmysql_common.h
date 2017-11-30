@@ -1,4 +1,4 @@
-/*
+    /*
   +----------------------------------------------------------------------+
   | PHP Version 7                                                        |
   +----------------------------------------------------------------------+
@@ -21,9 +21,30 @@
 #ifndef PHP_XMYSQL_COMMON_H
 #define PHP_XMYSQL_COMMON_H
 
+#include "php.h"
+
+#define X_IS_EMPTY_P(z) ( !(z!=NULL && Z_TYPE_P(z)!=IS_NULL) )
+#define X_RETURN_THIS RETURN_ZVAL(getThis(), 1, 0)
+#define X_ZSTR_EQUAL(z, str) (strcmp(Z_STRVAL_P(z), str)==0)
 
 /*关联数组级联查找， 如key=a.b.c*/
 zval *x_hash_get_path(zval *data, char *path, int path_length);
+
+static int air_call_func(const char *func_name, uint32_t param_count, zval params[], zval *retval){
+	zval func;
+	ZVAL_STRING(&func, func_name);
+	zval *_retval = NULL;
+	if(!retval){
+		zval ret;
+		_retval = &ret;
+	}
+	int status = call_user_function(EG(function_table), NULL, &func, retval?retval: _retval, param_count, params);
+	zval_ptr_dtor(&func);
+	if(_retval){
+		zval_ptr_dtor(_retval);
+	}
+	return status;
+}
 
 
 #define AIR_OBJ_INIT(pz, classname) do {\
@@ -133,6 +154,7 @@ static inline zval* air_call_method(zval *object, zend_class_entry *obj_ce, zend
 
 
 #define air_call_object_method(obj, obj_ce, function_name, retval_ptr, param_count, params) air_call_method(obj, obj_ce, NULL, function_name, sizeof(function_name)-1, retval_ptr, param_count, params)
+#define air_call_static_method(obj_ce, function_name, retval_ptr, param_count, params) air_call_method(NULL, obj_ce, NULL, function_name, sizeof(function_name)-1, retval_ptr, param_count, params)
 
 
 #endif

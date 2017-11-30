@@ -76,7 +76,7 @@ ZEND_MINIT_FUNCTION(xmysql_loader){
     xmysql_loader_ce  = zend_register_internal_class(&ce TSRMLS_CC);
 
     //属性
-    zend_declare_property_null(xmysql_loader_ce, "dbCache", strlen("dbCache"), ZEND_ACC_PUBLIC|ZEND_ACC_STATIC TSRMLS_CC);
+    zend_declare_property_null(xmysql_loader_ce, "dbCache", strlen("dbCache"), ZEND_ACC_PRIVATE|ZEND_ACC_STATIC TSRMLS_CC);
     zend_declare_property_null(xmysql_loader_ce, "dbConfig", strlen("dbConfig"), ZEND_ACC_PRIVATE|ZEND_ACC_STATIC TSRMLS_CC);
  	zend_declare_property_null(xmysql_loader_ce, "dbSlaveNums", strlen("dbSlaveNums"), ZEND_ACC_PRIVATE|ZEND_ACC_STATIC TSRMLS_CC);
 
@@ -114,6 +114,7 @@ zval *get_db_config() {
 zval *get_db_cache() {
 	 return init_get_property_by_name("dbCache");
 }
+
 zend_ulong get_db_slave_num_from_cache(zend_string *dbName) {
 	zval *slaveNumbers = init_get_property_by_name("dbSlaveNums");
 	zval *number = zend_hash_str_find(Z_ARRVAL_P(slaveNumbers), ZSTR_VAL(dbName), ZSTR_LEN(dbName));
