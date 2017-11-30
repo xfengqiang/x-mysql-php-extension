@@ -471,7 +471,8 @@ PHP_METHOD(xmysql_cond, sql) {
         init_set_fields(mysqli, fields, &setFields);
         int len = Z_STRLEN_P(oper)+Z_STRLEN_P(table)+Z_STRLEN_P(fields)+8;
         char *str = NULL;
-        spprintf(&str, len, "%s `%s` SET %s", Z_STRVAL(setFields));
+
+        spprintf(&str, len, "%s `%s` SET %s", Z_STRVAL_P(oper), Z_STRVAL_P(table), Z_STRVAL(setFields));
         add_index_string(&parts, idx++, str);
 
         zval_ptr_dtor(&setFields);
@@ -528,8 +529,6 @@ PHP_METHOD(xmysql_cond, sql) {
 
         }ZEND_HASH_FOREACH_END();
     }
-
-    
     
     int orderCnt = zend_array_count(Z_ARR_P(orders));
     if(orderCnt > 0) {
@@ -545,7 +544,7 @@ PHP_METHOD(xmysql_cond, sql) {
         zend_string_release(comma);
     }
 
-    if(!X_ZSTR_EQUAL(page, "")){
+    if(Z_TYPE_P(page)!= IS_NULL && !X_ZSTR_EQUAL(page, "")){
         add_index_zval(&parts, idx++, page);
     }
 

@@ -74,5 +74,56 @@ var_dump($dbConfig);
 $db = xmysql_loader::getDb("mall", xmysql_loader::DB_TYPE_SLAVE);
 var_dump($db->connect_errno);
 }
-getDb($dbs);
+//getDb($dbs);
 //testError($dbs);
+
+function testCond($dbs) {
+   xmysql_loader::registerDb('mall', $dbs['mall']);
+   $db = xmysql_loader::getDb('mall', xmysql_loader::DB_TYPE_SLAVE);
+    //select
+    $sql = xmysql_cond::table('gjj_invite_activity_user')
+        ->select('id,team_id')
+        ->equal(['user_id'=>1])
+        ->andc('query_status', 0, '>')
+        ->limit(10, 10)
+        ->order(['create_time'=>'DESC'])
+        ->sql();
+
+    echo "[SELECT] {$sql}\n";
+
+    //insert
+    $sql = xmysql_cond::table('gjj_invite_activity_user')
+        ->insert(['user_id'=>1,'user_name'=>'fankxu'])
+        ->sql();
+
+    echo "[INSERT] {$sql}\n";
+
+    //update
+    $sql = xmysql_cond::table('gjj_invite_activity_user')
+        ->update(['user_id'=>1,'user_name'=>'fankxu'])
+        ->andc('id', 1)
+        ->sql();
+    echo "[UPDATE] {$sql}\n";
+}
+
+
+function testCond1($dbs) {
+   xmysql_loader::registerDb('mall', $dbs['mall']);
+   $db = xmysql_loader::getDb('mall', xmysql_loader::DB_TYPE_SLAVE);
+   echo "sql in Cond:".xmysql_cond::inCond([1,'a','#'], $db)."\n";
+   echo "sql equal Cond:".xmysql_cond::equalCond(["id"=>'abc', "name"=>"fank"],NULL)."\n";
+   echo "sql equal Cond:".xmysql_cond::equalCond(["id"=>1, "name"=>"fank ' /*"], $db)."\n";
+   $cond = xmysql_cond::table("user")->select("*")->andc("id", 1)->andc("name", "fank")->order('id')->order('name', 'desc')->order(['create_time'=>'ASC'])->limit('1', 2);
+   //$cond = xmysql_cond::table("user")->select("*")->select('*')->select('*')->select('*');
+   //$cond = xmysql_cond::table("user")->insert(['name'=>'fank'], 1);
+   //$cond = xmysql_cond::table("user")->update(['name'=>'fank']);
+debug_zval_dump($cond);
+   var_dump($cond->page);
+echo  $cond->sql()."\n";
+return ;
+  
+}
+
+//getDb($dbs);
+//return ;
+testCond($dbs);
