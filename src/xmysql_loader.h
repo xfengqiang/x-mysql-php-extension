@@ -25,6 +25,8 @@
 #define XMYSQL_DB_TYPE_MASTER 1
 #define XMYSQL_DB_TYPE_SLAVE 2
 
+int xmysql_loader_get_db(zval **mysqli, zend_string *dbName, zend_ulong  type);
+
 ZEND_MINIT_FUNCTION(xmysql_loder);
 ZEND_MSHUTDOWN_FUNCTION(xmysql_loader);
 

@@ -69,7 +69,6 @@ static zend_function_entry xmysql_loader_methods[] = {
 };
 
 ZEND_MINIT_FUNCTION(xmysql_loader){
-	php_printf("xmysql start all dbs\n");
     zend_class_entry ce;
     INIT_CLASS_ENTRY(ce, "xmysql_loader", xmysql_loader_methods);
 
@@ -90,6 +89,7 @@ ZEND_MINIT_FUNCTION(xmysql_loader){
 }
 
 ZEND_MSHUTDOWN_FUNCTION(xmysql_loader) {
+    //TODO 调整为请求生命周期
 	php_printf("xmysql close all dbs\n");
 	xmysql_close_all_db();
 }
@@ -171,10 +171,11 @@ zval *get_db_config_by_name(zend_string *dbName, zend_ulong  type) {
 	return config;
 }
 
-int get_db(zval **mysqli, zend_string *dbName, zend_ulong  type) {
+int xmysql_loader_get_db(zval **mysqli, zend_string *dbName, zend_ulong  type) {
 	zval *dbCache = get_db_cache();
 	zval *dbsCache = zend_hash_str_find(Z_ARRVAL_P(dbCache), ZSTR_VAL(dbName), ZSTR_LEN(dbName));
-	if(!dbsCache){
+	 
+    if(!dbsCache){
 		zval emptyArray;
 		array_init(&emptyArray);
 		add_assoc_zval_ex(dbCache, ZSTR_VAL(dbName), ZSTR_LEN(dbName), &emptyArray);
@@ -248,8 +249,8 @@ int get_db(zval **mysqli, zend_string *dbName, zend_ulong  type) {
 
 //方法实现
 PHP_METHOD(xmysql_loader, registerDb) {
-	zend_string *key;
-	zval *configVal;
+	zend_string *key = NULL;
+	zval *configVal = NULL;
 
 	//判断
 	if( zend_parse_parameters(ZEND_NUM_ARGS(), "Sa", &key, &configVal) == FAILURE ) {
@@ -328,7 +329,7 @@ PHP_METHOD(xmysql_loader, getDb) {
 	}
 	zval *db;
 
-	if(!get_db(&db, dbName, type)) {
+	if(!xmysql_loader_get_db(&db, dbName, type)) {
 		RETURN_NULL();
 	} 
 

@@ -108,6 +108,8 @@ function testCond($dbs) {
 
 
 function testCond1($dbs) {
+   xmysql_cond::inCond([]);
+return ;
    xmysql_loader::registerDb('mall', $dbs['mall']);
    $db = xmysql_loader::getDb('mall', xmysql_loader::DB_TYPE_SLAVE);
    echo "sql in Cond:".xmysql_cond::inCond([1,'a','#'], $db)."\n";
@@ -124,6 +126,16 @@ return ;
   
 }
 
+function testDb($dbs){
+   xmysql_loader::registerDb('mall', $dbs['mall']);
+   $db = new xmysql_db("mall");
+   $db->select('user', '*')->andc("id", 1);
+   $mysqli = $db->db(1);
+    var_dump($mysqli);
+   //var_dump($db);
+}
+
+testDb($dbs);
 //getDb($dbs);
 //return ;
-testCond($dbs);
+//testCond1($dbs);

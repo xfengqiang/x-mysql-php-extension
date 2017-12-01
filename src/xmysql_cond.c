@@ -37,6 +37,12 @@
 
 zend_class_entry *xmysql_cond_ce;
 
+//参数定义
+ZEND_BEGIN_ARG_INFO_EX(xmysql_cond_inCond_args, 0, 0, 2)
+    ZEND_ARG_ARRAY_INFO(0, vals, 0)
+    ZEND_ARG_OBJ_INFO(0, db, mysqli, 0)
+ZEND_END_ARG_INFO()
+
 //方法声明
 PHP_METHOD(xmysql_cond, table) {
     zend_string *table;
@@ -569,8 +575,8 @@ PHP_METHOD(xmysql_cond, sql) {
 static zend_function_entry xmysql_cond_methods[] = {
 	PHP_ME(xmysql_cond, table, NULL, ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
 	PHP_ME(xmysql_cond, equalCond, NULL, ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
-	PHP_ME(xmysql_cond, inCond, NULL, ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
-	PHP_ME(xmysql_cond, __construct, NULL, ZEND_ACC_PUBLIC)
+	PHP_ME(xmysql_cond, inCond, xmysql_cond_inCond_args, ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
+	PHP_ME(xmysql_cond, __construct, NULL, ZEND_ACC_PUBLIC|ZEND_ACC_CTOR)
 	PHP_ME(xmysql_cond, select, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(xmysql_cond, insert, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(xmysql_cond, update, NULL, ZEND_ACC_PUBLIC)
@@ -597,20 +603,19 @@ ZEND_MINIT_FUNCTION(xmysql_cond)
         xmysql_cond_ce = zend_register_internal_class(&ce TSRMLS_CC);
 
         //属性
-        zend_declare_property_string(xmysql_cond_ce, ZEND_STRL("table"), "",  ZEND_ACC_PUBLIC TSRMLS_CC);
-        zend_declare_property_null(xmysql_cond_ce, ZEND_STRL("conds"), ZEND_ACC_PUBLIC TSRMLS_CC);
-        zend_declare_property_null(xmysql_cond_ce, ZEND_STRL("orders"), ZEND_ACC_PUBLIC TSRMLS_CC);
-        zend_declare_property_string(xmysql_cond_ce, ZEND_STRL("_sql"), "", ZEND_ACC_PUBLIC TSRMLS_CC);
-        zend_declare_property_long(xmysql_cond_ce, ZEND_STRL("queryType"), 0, ZEND_ACC_PUBLIC TSRMLS_CC);
-        zend_declare_property_null(xmysql_cond_ce, ZEND_STRL("page"), ZEND_ACC_PUBLIC TSRMLS_CC);
-        zend_declare_property_string(xmysql_cond_ce, ZEND_STRL("oper"), "", ZEND_ACC_PUBLIC TSRMLS_CC);
-        zend_declare_property_string(xmysql_cond_ce, ZEND_STRL("fields"), "*", ZEND_ACC_PUBLIC TSRMLS_CC);
+        zend_declare_property_string(xmysql_cond_ce, ZEND_STRL("table"), "",  ZEND_ACC_PRIVATE TSRMLS_CC);
+        zend_declare_property_null(xmysql_cond_ce, ZEND_STRL("conds"), ZEND_ACC_PRIVATE TSRMLS_CC);
+        zend_declare_property_null(xmysql_cond_ce, ZEND_STRL("orders"), ZEND_ACC_PRIVATE TSRMLS_CC);
+        zend_declare_property_string(xmysql_cond_ce, ZEND_STRL("_sql"), "", ZEND_ACC_PRIVATE TSRMLS_CC);
+        zend_declare_property_long(xmysql_cond_ce, ZEND_STRL("queryType"), 0, ZEND_ACC_PRIVATE TSRMLS_CC);
+        zend_declare_property_null(xmysql_cond_ce, ZEND_STRL("page"), ZEND_ACC_PRIVATE TSRMLS_CC);
+        zend_declare_property_string(xmysql_cond_ce, ZEND_STRL("oper"), "", ZEND_ACC_PRIVATE TSRMLS_CC);
+        zend_declare_property_string(xmysql_cond_ce, ZEND_STRL("fields"), "*", ZEND_ACC_PRIVATE TSRMLS_CC);
 
         //类常量
         zend_declare_class_constant_long(xmysql_cond_ce, ZEND_STRL("QUERY_TYPE_READ"), QUERY_TYPE_READ);
         zend_declare_class_constant_long(xmysql_cond_ce, ZEND_STRL("QUERY_TYPE_WRITE"), QUERY_TYPE_WRITE);
        
-        //方法
         return SUCCESS;
 }
 

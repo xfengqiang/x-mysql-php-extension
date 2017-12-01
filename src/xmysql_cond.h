@@ -22,7 +22,7 @@
 #define PHP_XMYSQL_COND_H
 
 ZEND_MINIT_FUNCTION(xmysql_cond);
-
+ZEND_MSHUTDOWN_FUNCTION(xmysql_cond);
 
 #endif
 

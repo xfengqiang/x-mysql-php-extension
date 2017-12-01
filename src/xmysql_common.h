@@ -153,7 +153,7 @@ static inline zval* air_call_method(zval *object, zend_class_entry *obj_ce, zend
 
 
 
-#define air_call_object_method(obj, obj_ce, function_name, retval_ptr, param_count, params) air_call_method(obj, obj_ce, NULL, function_name, sizeof(function_name)-1, retval_ptr, param_count, params)
+#define air_call_object_method(obj, obj_ce, function_name, retval_ptr, param_count, params) air_call_method(obj, obj_ce, NULL, function_name, strlen(function_name), retval_ptr, param_count, params)
 #define air_call_static_method(obj_ce, function_name, retval_ptr, param_count, params) air_call_method(NULL, obj_ce, NULL, function_name, sizeof(function_name)-1, retval_ptr, param_count, params)
 
 

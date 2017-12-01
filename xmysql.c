@@ -82,6 +82,9 @@ PHP_MINIT_FUNCTION(xmysql)
 PHP_MSHUTDOWN_FUNCTION(xmysql)
 {
 	ZEND_MODULE_SHUTDOWN_N(xmysql_loader);
+    ZEND_MODULE_SHUTDOWN_N(xmysql_cond);
+    ZEND_MODULE_SHUTDOWN_N(xmysql_db);
+    
 	return SUCCESS;
 }
 /* }}} */
