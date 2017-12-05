@@ -23,6 +23,7 @@
 
 ZEND_MINIT_FUNCTION(xmysql_cond);
 ZEND_MSHUTDOWN_FUNCTION(xmysql_cond);
-
+// zend_class_entry *get_mysqli_result_class_ce();
+// zend_class_entry *get_mysqli_class_ce();
 #endif
 

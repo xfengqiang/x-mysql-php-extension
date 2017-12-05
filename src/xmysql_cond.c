@@ -30,8 +30,6 @@
 #include "src/xmysql_common.h"
 #include "src/xmysql_cond.h"
 
-#define QUERY_TYPE_READ 1
-#define QUERY_TYPE_WRITE 2
 
 #define MAX_STR_LEN 128
 
@@ -62,6 +60,11 @@ PHP_METHOD(xmysql_cond, table) {
     zval_ptr_dtor(&params[0]);
     zval_ptr_dtor(&cond);
 }
+
+zend_class_entry *get_mysqli_result_class_ce() {
+    return  (zend_class_entry *)zend_hash_str_find_ptr(EG(class_table), ZEND_STRL("mysqli_result"));
+}
+
 
 zend_class_entry *get_mysqli_class_ce() {
     return  (zend_class_entry *)zend_hash_str_find_ptr(EG(class_table), ZEND_STRL("mysqli"));
@@ -195,8 +198,8 @@ PHP_METHOD(xmysql_cond, __construct) {
 }
 
 PHP_METHOD(xmysql_cond, select) {
-    zval *fields;
-    if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS(), "z", &fields)) {
+    zend_string *fields = NULL;
+    if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS(), "|S", &fields)) {
         RETURN_FALSE;
     }
    
@@ -205,10 +208,12 @@ PHP_METHOD(xmysql_cond, select) {
     zend_update_property_string(xmysql_cond_ce, this, ZEND_STRL("_sql"), "");
     zend_update_property_long(xmysql_cond_ce, this, ZEND_STRL("queryType"), QUERY_TYPE_READ);
 
-    zval fd;
-    ZVAL_STRING(&fd, "fields");
-    zend_update_property_ex(xmysql_cond_ce, this,Z_STR(fd), fields);
-    zval_ptr_dtor(&fd);
+    if(!fields) {
+         zend_update_property_string(xmysql_cond_ce, this, ZEND_STRL("fields"), "*");
+    }else{
+        zend_update_property_str(xmysql_cond_ce, this, ZEND_STRL("fields"), fields);
+    }
+   
 
     X_RETURN_THIS;
 }
@@ -241,7 +246,7 @@ PHP_METHOD(xmysql_cond, insert) {
 
 PHP_METHOD(xmysql_cond, update) {
     zval *fields;
-    if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS(), "z", &fields)) {
+    if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS(), "a", &fields)) {
         RETURN_FALSE;
     }
 
@@ -260,7 +265,7 @@ PHP_METHOD(xmysql_cond, del) {
     zend_update_property_long(xmysql_cond_ce, this, ZEND_STRL("queryType"), QUERY_TYPE_WRITE);
     zend_update_property_string(xmysql_cond_ce, this, ZEND_STRL("_sql"), "");
     zend_update_property_string(xmysql_cond_ce, this, ZEND_STRL("oper"), "DELETE");
-    zend_update_property_null(xmysql_cond_ce, this, ZEND_STRL("fields"));
+    zend_update_property_string(xmysql_cond_ce, this, ZEND_STRL("fields"), "");
     X_RETURN_THIS;
 }
 
@@ -467,7 +472,7 @@ PHP_METHOD(xmysql_cond, sql) {
         int len = Z_STRLEN_P(oper)+Z_STRLEN_P(table)+Z_STRLEN_P(fields)+8;
         char *str = NULL;
         
-        spprintf(&str, len, "%s `%s` SET %s", Z_STRVAL_P(oper), Z_STRVAL(setFields));
+        spprintf(&str, len, "%s `%s` SET %s", Z_STRVAL_P(oper), Z_STRVAL_P(table), Z_STRVAL(setFields));
         add_index_string(&parts, idx++, str);
 
         zval_ptr_dtor(&setFields);
@@ -554,9 +559,9 @@ PHP_METHOD(xmysql_cond, sql) {
         add_index_zval(&parts, idx++, page);
     }
 
-    zend_string *c = zend_string_init("", 0, 0);
+    zend_string *c = ZSTR_EMPTY_ALLOC();
     zval zvalRet;
-    
+       
     php_implode(c, &parts, &zvalRet);
     zend_update_property(xmysql_cond_ce, this, ZEND_STRL("_sql"), &zvalRet);
    

@@ -22,6 +22,11 @@
 #ifndef PHP_XMYSQL_DEFINE_H
 #define PHP_XMYSQL_DEFINE_H
 
+#define QUERY_TYPE_AUTO 0
+#define QUERY_TYPE_READ 1
+#define QUERY_TYPE_WRITE 2
+
+
 #define DB_TYPE_SLAVE 2
 #define DB_TYPE_MASTER 1
 #define DB_TYPE_AUTO 0

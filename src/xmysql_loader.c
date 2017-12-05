@@ -42,7 +42,7 @@ PHP_METHOD(xmysql_loader, registerDbs);
 PHP_METHOD(xmysql_loader, getDbConfig);
 PHP_METHOD(xmysql_loader, getAllConfig);
 PHP_METHOD(xmysql_loader, getDb);
-PHP_METHOD(xmysql_loader, test);
+
 
 //参数声明
 /* {{{ ARG_INFO */
@@ -64,7 +64,6 @@ static zend_function_entry xmysql_loader_methods[] = {
 	PHP_ME(xmysql_loader, registerDbs, NULL, ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
 	PHP_ME(xmysql_loader, getDbConfig, NULL, ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
 	PHP_ME(xmysql_loader, getDb, NULL, ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
-	PHP_ME(xmysql_loader, test, NULL, ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
 	{NULL, NULL, NULL}
 };
 
@@ -129,6 +128,41 @@ void set_db_slave_num_cache(zend_string *dbName, zend_long num) {
 	add_assoc_long(slaveNumbers, ZSTR_VAL(dbName), num);
 }
 
+void remove_db_slave_num_cache(zend_string *dbName){
+    zval *slaveNumbers = init_get_property_by_name("dbSlaveNums");
+    zend_hash_del(Z_ARRVAL_P(slaveNumbers), dbName);
+}
+
+
+void xmysql_loader_unregister_db(zend_string *dbName) {
+     zval *dbCache = get_db_cache();
+    //remove db cache
+    zval *dbsCache = zend_hash_str_find(Z_ARRVAL_P(dbCache), ZSTR_VAL(dbName), ZSTR_LEN(dbName));
+    if(dbsCache) { //no cache
+        zval *val;
+	    ulong idx;
+	    zend_string *key;
+    
+	    ZEND_HASH_FOREACH_KEY_VAL(Z_ARRVAL_P(dbsCache), idx, key, val){
+                   php_printf("db ref count :%d\n",Z_REFCOUNT_P(val));
+            if(Z_REFCOUNT_P(val) == 1) {
+                php_printf("close db :%d\n",idx);
+                 air_call_object_method(val, Z_OBJCE_P(val), "close", NULL, 0, NULL);
+            }
+		   
+	    }ZEND_HASH_FOREACH_END();
+        zend_hash_del(Z_ARRVAL_P(dbCache), dbName);
+    }
+    
+    //remove slave num cache
+    remove_db_slave_num_cache(dbName);
+    
+    //remove config
+    zval *configs = get_db_config();
+    zend_hash_del(Z_ARRVAL_P(configs), dbName);
+}
+
+
 zval *xmysql_close_all_db() {
 	zval *allCache = get_db_cache();
 
@@ -150,13 +184,13 @@ zval *get_db_config_by_name(zend_string *dbName, zend_ulong  type) {
 	//未缓存
 	zval *dbConfig = zend_hash_str_find(Z_ARRVAL_P(get_db_config()), ZSTR_VAL(dbName), ZSTR_LEN(dbName));
 	if(!dbConfig) {
-		php_error(E_NOTICE, "xmysql dbNmae:%s not registered\n", dbName);
+		php_error(E_NOTICE, "xmysql dbName:%s not registered\n", ZSTR_VAL(dbName));
 		return NULL;
-	}
-
+    }
+    
 	zval *config = zend_hash_index_find(Z_ARRVAL_P(dbConfig), type);
 	if(!config) {
-		php_error(E_NOTICE, "xmysql dbName:%s not registered\n", dbName);
+		php_error(E_NOTICE, "xmysql dbName:%s-%d not registered\n",  ZSTR_VAL(dbName), type);
 		return NULL;
 	}
 
@@ -172,7 +206,7 @@ zval *get_db_config_by_name(zend_string *dbName, zend_ulong  type) {
 }
 
 int xmysql_loader_get_db(zval **mysqli, zend_string *dbName, zend_ulong  type) {
-	zval *dbCache = get_db_cache();
+    zval *dbCache = get_db_cache();
 	zval *dbsCache = zend_hash_str_find(Z_ARRVAL_P(dbCache), ZSTR_VAL(dbName), ZSTR_LEN(dbName));
 	 
     if(!dbsCache){
@@ -190,7 +224,7 @@ int xmysql_loader_get_db(zval **mysqli, zend_string *dbName, zend_ulong  type) {
 	zval *db = zend_hash_index_find(Z_ARRVAL_P(dbsCache), type);
 	//已缓存
 	if(db) {
-		php_error(E_NOTICE, "read from cache db:%s type:%d.\n", ZSTR_VAL(dbName), type);
+		// php_error(E_NOTICE, "read from cache db:%s type:%d.\n", ZSTR_VAL(dbName), type);
 		*mysqli = db;
 		return 1;
 	}
@@ -247,6 +281,7 @@ int xmysql_loader_get_db(zval **mysqli, zend_string *dbName, zend_ulong  type) {
 	return  1;
 }
 
+
 //方法实现
 PHP_METHOD(xmysql_loader, registerDb) {
 	zend_string *key = NULL;
@@ -258,6 +293,9 @@ PHP_METHOD(xmysql_loader, registerDb) {
 	}
 	zval *configs = get_db_config();
 
+    xmysql_loader_unregister_db(key);
+
+    zval_add_ref(configVal);
 	add_assoc_zval_ex(configs, ZSTR_VAL(key), ZSTR_LEN(key), configVal);
 
 	//设置slave hum
@@ -279,13 +317,20 @@ PHP_METHOD(xmysql_loader, registerDbs) {
 		RETURN_FALSE;
 	}
 
-	zval *configs = get_db_config();
-	zend_hash_merge(Z_ARRVAL_P(configs), Z_ARRVAL_P(configVal), zval_add_ref, 1);
-
 	//设置slave numbers
 	zend_ulong    hashIndex;
 	zval *hashData;
 	zend_string *hashKey;
+
+    //需要先清除之前的缓存
+    ZEND_HASH_FOREACH_KEY_VAL(Z_ARRVAL_P(configVal), hashIndex, hashKey, hashData) {
+        xmysql_loader_unregister_db(hashKey);
+    }ZEND_HASH_FOREACH_END();
+
+	zval *configs = get_db_config();
+	zend_hash_merge(Z_ARRVAL_P(configs), Z_ARRVAL_P(configVal), zval_add_ref, 1);
+
+
 	ZEND_HASH_FOREACH_KEY_VAL(Z_ARR_P(configVal), hashIndex, hashKey, hashData) {
 		zval *slaveConfig = zend_hash_index_find(Z_ARRVAL_P(hashData), DB_TYPE_SLAVE);
 		zend_ulong slaveNum = 0;
@@ -294,7 +339,6 @@ PHP_METHOD(xmysql_loader, registerDbs) {
 				slaveNum = zend_array_count(Z_ARRVAL_P(slaveConfig));
 			}
 		}
-		php_printf("hash idx:%s num:%d\n", ZSTR_VAL(hashKey), slaveNum);
 		set_db_slave_num_cache(hashKey, slaveNum);
 	} ZEND_HASH_FOREACH_END();
 
@@ -326,18 +370,12 @@ PHP_METHOD(xmysql_loader, getDb) {
 	zend_long type;
 	if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Sl", &dbName, &type) == FAILURE) {
 		RETURN_NULL();
-	}
-	zval *db;
-
+    }
+    
+    zval *db;
 	if(!xmysql_loader_get_db(&db, dbName, type)) {
 		RETURN_NULL();
 	} 
 
 	RETURN_ZVAL(db, 1, 0);
-}
-
-
-PHP_METHOD(xmysql_loader, test) {
-	php_printf("this is test\n");
-	RETURN_TRUE;
 }
