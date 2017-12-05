@@ -6,14 +6,16 @@ PHP mysql orm封装，使用msyqli扩展实现
 - 回调函数
 - SQL语句快速拼装
 
-## 引入文件
+## 下载安装
 ```
-require_once 'xmysql.php';
-use xmysql\db;
-use xmysql\xmysql_loader;
+cd xmysql
+phpize --with-php-config=/path/to/php-config 
+make install
+//修改php.ini，增加下面的语句
+extestion=xmysql.so 
 ```
 
-## 数据库配置
+### 数据库配置
 ```
 $config = [
     xmysql_loader::DB_TYPE_MASTER=>[
@@ -37,6 +39,8 @@ $config = [
 ];
 ```
 
+### demo 
+见源码目录 [demo/xmysql-demo.php](https://github.com/xfengqiang/x-mysql-php-extension/blob/master/demo/xmysql-demo.php)  和 [test.php](https://github.com/xfengqiang/x-mysql-php-extension/blob/master/test.php)
 ### 注册数据库
 ```
 xmysql_loader::registerDb('mall', $config);
