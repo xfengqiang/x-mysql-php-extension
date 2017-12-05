@@ -94,8 +94,23 @@ function printRet($msg, $data) {
     echo "$msg ".json_encode($data)."\n";
 }
 
+function xmysql_callback(\xmysql_db $mysql, \mysqli $db, $sql){
+    echo "Global callback [SQL] {$sql} TimeUsed:".$mysql->lastQueryTime()."ms errno:".$mysql->lastErrorCode()." errmsg:".$mysql->lastErrorMsg()."\n";
+}
+
+class A {
+    public function callback(\xmysql_db $mysql, \mysqli $db, $sql)
+    {
+        echo "Class callback [SQL] {$sql} TimeUsed:".$mysql->lastQueryTime()."ms errno:".$mysql->lastErrorCode()." errmsg:".$mysql->lastErrorMsg()."\n";
+    }
+}
 function testDb($dbs){
+    xmysql_db::setGlobalCallBack('xmysql_callback');
+    xmysql_db::enbleGlobalProfile(true);
+    $a = new A();
+    // xmysql_db::setGlobalCallBack(array($a, 1));
    $db = new xmysql_db("mall");  
+//    $db->callback('xmysql_callback');
     // xmysql::setGlobalCallBack(function (xmysql $mysql, mysqli $db, $sql) {
     //     echo "[SQL] {$sql} TimeUsed:".$mysql->lastQueryTime()."ms errno:".$mysql->lastErrorCode()." errmsg:".$mysql->lastErrorMsg()."\n";
     // });
@@ -108,7 +123,7 @@ function testDb($dbs){
     printRet("query row", $ret);
   
     $ret = $db->select('user')->limit(1)->limit(1, 10)->query();
-    printRet("page cond  last sql:".$db->lastSql(), $ret);
+    printRet("page cond", $ret);
 
     //and condition
     $ret = $db->select('user', 'name')->andc('id', 1)->queryRow();
@@ -132,7 +147,7 @@ function testDb($dbs){
     //error
     $ret = $db->insert("user", ['id'=>1])->query();
     printRet("test error", $ret);
-    printRet("test error info", "errNo:".$db->lastErrCode()." errMsg:".$db->lastErrorMsg());
+    printRet("test error info", "errNo:".$db->lastErrorCode()." errMsg:".$db->lastErrorMsg());
 
     //count
     $ret = $db->select("user", "count(*) as cnt")->queryRow();

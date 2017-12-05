@@ -31,6 +31,9 @@
 #include "php.h"
 #include "php_ini.h"
 #include "ext/standard/php_array.h"
+#include "zend_smart_str_public.h"
+#include "zend_smart_str.h"
+#include "time.h"
 
 #include "php_xmysql.h"
 #include "src/xmysql_define.h"
@@ -45,13 +48,16 @@ zend_class_entry *get_xmysql_cond_ce() {
 }
 
 PHP_METHOD(xmysql_db, setGlobalCallBack){
-    zend_fcall_info f;
-    zend_fcall_info_cache f_cache;
-    if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS(), "f", &f, &f_cache)) {
+    // zend_fcall_info f;
+    // zend_fcall_info_cache f_cache;
+    // if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS(), "z", &f, &f_cache)) {
+    //     return ;
+    // }
+    zval *f;
+    if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS(), "z", &f)) {
         return ;
     }
-    // zend_update_static_property()
-    //TODO 如何设置一个callable成员？
+    zend_update_static_property(xmysql_db_ce, ZEND_STRL("globalCallBack"), f);
 }
 
 PHP_METHOD(xmysql_db, enbleGlobalProfile){
@@ -71,7 +77,14 @@ PHP_METHOD(xmysql_db, __construct){
 }
 
 PHP_METHOD(xmysql_db, callback){
-    //TODO 如何设置callback成员？
+    zval *f;
+    if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS(), "z", &f)) {
+        return ;
+    }
+
+    zend_update_property(xmysql_db_ce, getThis(), ZEND_STRL("_callback"), f);
+
+    X_RETURN_THIS;
 }
 
 //初始化xmysql_db->_sqlCond
@@ -337,6 +350,44 @@ int xmysql_db_get_db(zval *obj, zend_ulong type, zval *mysqli) {
     return 1;
 } 
 
+void xmysql_db_call_callback(zval *obj, zval *callback, zval *mysqli, zend_string *sql) {
+    zval params[3];
+    ZVAL_ZVAL(&params[0], obj, 0, 0);
+    ZVAL_ZVAL(&params[1], mysqli, 0, 0);
+    ZVAL_STR(&params[2], sql);
+    if(Z_TYPE_P(callback) == IS_STRING) {   
+        air_call_func(Z_STRVAL_P(callback), 3, params, NULL);
+    }else if(Z_TYPE_P(callback) == IS_ARRAY){
+        zval *obj = zend_hash_index_find(Z_ARR_P(callback), 0);
+        zval *method = zend_hash_index_find(Z_ARR_P(callback), 1);
+        if(Z_TYPE_P(obj) == IS_OBJECT && Z_TYPE_P(method) == IS_STRING) {
+            air_call_object_method(obj, Z_OBJCE_P(obj), Z_STRVAL_P(method), NULL, 3, params);
+        }else{
+            smart_str buf = {0};
+	        php_var_export_ex(callback, 0, &buf);
+	        smart_str_0(&buf);
+	        php_error(E_WARNING, "invalid call back argument %s", ZSTR_VAL(buf.s));
+	        smart_str_free(&buf);
+           
+        }
+    
+    }
+}
+
+static zend_always_inline double getTime() {
+    double retV = 0.0;
+    zval ret;
+	zval params[1];
+    ZVAL_BOOL(&params[0], 1);
+    
+    air_call_func("microtime", 1, params, &ret);
+    
+    retV = Z_DVAL(ret);
+    zval_ptr_dtor(&ret);
+
+    return retV;
+}
+
 void xmysql_db_query(zval *obj, zend_string *sql, zend_ulong type, zend_bool isRow, zval *ret) {
     zend_bool releaseSql = 0;
     zval mysqli;
@@ -384,11 +435,11 @@ void xmysql_db_query(zval *obj, zend_string *sql, zend_ulong type, zend_bool isR
     zval rv;
     zval *gProfileEnabled = zend_read_static_property(xmysql_db_ce, ZEND_STRL("globalEnableProfile"), 0);
     zval *profileEnabled = zend_read_property(xmysql_db_ce, obj, ZEND_STRL("_enableProfile"), 0, &rv);
-    zend_bool enableProfile = Z_LVAL_P(gProfileEnabled) || Z_LVAL_P(profileEnabled);
+    zend_bool enableProfile = Z_TYPE_P(gProfileEnabled)==IS_TRUE || Z_TYPE_P(profileEnabled)==IS_TRUE;
 
-    int  startTime, endTime;
+    double  startTime, endTime;
     if(enableProfile) {
-        startTime = clock();
+        startTime = getTime();
     }
     
     zend_update_property_string(xmysql_db_ce, obj, ZEND_STRL("_lastSql"), ZSTR_VAL(sql));
@@ -412,11 +463,14 @@ void xmysql_db_query(zval *obj, zend_string *sql, zend_ulong type, zend_bool isR
     }
     zval_ptr_dtor(&sqlRet);
     if(enableProfile) {
-        endTime = clock();
-        zend_update_property_long(xmysql_db_ce, obj, ZEND_STRL("_lastQueryTime"), endTime-startTime);
+        endTime = getTime();
+        zend_update_property_double(xmysql_db_ce, obj, ZEND_STRL("_lastQueryTime"), endTime-startTime);
     }
     
-    //TODO process callback
+    zval *globalCallBack = zend_read_static_property(xmysql_db_ce, ZEND_STRL("globalCallBack"), 0);
+    xmysql_db_call_callback(obj, globalCallBack, &mysqli, sql);
+    zval *classCallback  = zend_read_property(xmysql_db_ce, obj, ZEND_STRL("_callback"), 0, &rv);
+    xmysql_db_call_callback(obj, classCallback, &mysqli, sql);
 
     zval_ptr_dtor(&queryParam[0]);
     if(releaseSql) {
@@ -510,7 +564,7 @@ PHP_METHOD(xmysql_db, queryRow){
 
 // PHP_METHOD(xmysql_db, getQueryType){}
 
-PHP_METHOD(xmysql_db, lastErrCode){
+PHP_METHOD(xmysql_db, lastErrorCode){
     zval rv;
     zval *errNo = NULL;
     zval *lastQueryDb = zend_read_property(xmysql_db_ce, getThis(), ZEND_STRL("_lastQueryDb"), 0, &rv);
@@ -667,7 +721,7 @@ static zend_function_entry xmysql_db_methods[] = {
     PHP_ME(xmysql_db, query, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(xmysql_db, queryRow, NULL, ZEND_ACC_PUBLIC)
 
-    PHP_ME(xmysql_db, lastErrCode, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(xmysql_db, lastErrorCode, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(xmysql_db, lastErrorMsg, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(xmysql_db, lastSql, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(xmysql_db, rowsAffected, NULL, ZEND_ACC_PUBLIC)
@@ -698,6 +752,7 @@ ZEND_MINIT_FUNCTION(xmysql_db){
     zend_declare_property_string(xmysql_db_ce, ZEND_STRL("_dbName"), "", ZEND_ACC_PRIVATE);
     zend_declare_property_null(xmysql_db_ce, ZEND_STRL("_sqlCond"), ZEND_ACC_PRIVATE);
     
+    zend_declare_property_null(xmysql_db_ce, ZEND_STRL("_callback"), ZEND_ACC_PRIVATE);
     zend_declare_property_bool(xmysql_db_ce, ZEND_STRL("_enableProfile"), 1, ZEND_ACC_PRIVATE);
     zend_declare_property_double(xmysql_db_ce, ZEND_STRL("_lastQueryTime"), 0, ZEND_ACC_PRIVATE);
     
