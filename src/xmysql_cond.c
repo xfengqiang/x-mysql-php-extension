@@ -272,6 +272,7 @@ PHP_METHOD(xmysql_cond, del) {
 void addCondtion(zval *obj, zend_string *key, zval *val,  char *op,  char *condStr) {
     zval cond;
     array_init(&cond);
+
     zend_string_addref(key);
     add_assoc_str(&cond, "k", key);
 
@@ -412,7 +413,6 @@ PHP_METHOD(xmysql_cond, limit) {
     switch(argc){
         case 1:
            snprintf(str, len, " LIMIT %d",  zval_get_long(&args[0]));
-           php_printf("limit str:%s \n", str);
         break;
         case 2:
             snprintf(str, len," LIMIT %d,%d", zval_get_long(&args[0]), zval_get_long(&args[1]));
@@ -556,6 +556,7 @@ PHP_METHOD(xmysql_cond, sql) {
     }
 
     if(Z_TYPE_P(page)!= IS_NULL && !X_ZSTR_EQUAL(page, "")){
+        Z_TRY_ADDREF_P(page);
         add_index_zval(&parts, idx++, page);
     }
 

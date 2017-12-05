@@ -107,6 +107,9 @@ function testDb($dbs){
     $ret = $db->queryRow('SELECT * FROM user WHERE id=1');
     printRet("query row", $ret);
   
+    $ret = $db->select('user')->limit(1)->limit(1, 10)->query();
+    printRet("page cond  last sql:".$db->lastSql(), $ret);
+
     //and condition
     $ret = $db->select('user', 'name')->andc('id', 1)->queryRow();
     printRet("test cond", $ret);
@@ -160,7 +163,7 @@ xmysql_loader::registerDbs($dbs);
 // $ret = $db1->query("SELECT * from user");
 // var_dump($db1);
 // getDb($dbs);
-testCond($dbs);
-// testDb($dbs);
+// testCond($dbs);
+testDb($dbs);
 
 
