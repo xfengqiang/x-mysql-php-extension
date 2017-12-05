@@ -60,7 +60,7 @@ PHP_METHOD(xmysql_db, setGlobalCallBack){
     zend_update_static_property(xmysql_db_ce, ZEND_STRL("globalCallBack"), f);
 }
 
-PHP_METHOD(xmysql_db, enbleGlobalProfile){
+PHP_METHOD(xmysql_db, enableGlobalProfile){
     zend_bool enable;
     if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS(), "b", &enable)) {
         return;
@@ -96,12 +96,12 @@ void init_sql_cond(zval *obj, const char *method, const char * table, zend_ulong
     air_call_func("xmysql_cond::table", 1, tableParam, &cond);
     zval_ptr_dtor(&tableParam[0]);
 
-    //  php_var_dump(&cond, 0); //TODO remove
+    //  
     zend_class_entry *cond_ce = get_xmysql_cond_ce();
     air_call_object_method(&cond, cond_ce, method, NULL, paramNum, params);
   
     zend_update_property(xmysql_db_ce, obj, ZEND_STRL("_sqlCond"), &cond);
- 
+
     zval_ptr_dtor(&cond);
 }
 
@@ -130,10 +130,13 @@ PHP_METHOD(xmysql_db, insert){
     if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS(), "Sa|b", &table, &data, &ignore)) {
         RETURN_FALSE;
     }
-
+    php_printf("db insert data \n");
+    php_debug_zval_dump(data, 0);
+    
     zval params[2];
     ZVAL_ZVAL(&params[0], data, 0, 0);
     ZVAL_BOOL(&params[1], ignore);
+
     init_sql_cond(getThis(), "insert", ZSTR_VAL(table), 2, params);
 
     X_RETURN_THIS;
@@ -141,11 +144,13 @@ PHP_METHOD(xmysql_db, insert){
 
 PHP_METHOD(xmysql_db, update){
     zend_string *table = NULL;
-    zval *data;
+    zval *data = NULL;
     if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS(), "Sa", &table, &data)) {
         RETURN_FALSE;
     }
-
+    php_printf("db update data \n");
+    zval_add_ref(data);
+    php_debug_zval_dump(data, 0);
     zval params[1];
     ZVAL_ZVAL(&params[0], data, 0, 0);
     init_sql_cond(getThis(), "update", ZSTR_VAL(table), 1, params);
@@ -697,7 +702,7 @@ PHP_METHOD(xmysql_db, rollbackTx){
 
 static zend_function_entry xmysql_db_methods[] = {
     PHP_ME(xmysql_db, setGlobalCallBack, NULL, ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
-    PHP_ME(xmysql_db, enbleGlobalProfile, NULL, ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
+    PHP_ME(xmysql_db, enableGlobalProfile, NULL, ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
     PHP_ME(xmysql_db, __construct, NULL, ZEND_ACC_PUBLIC|ZEND_ACC_CTOR)
     PHP_ME(xmysql_db, callback, NULL, ZEND_ACC_PUBLIC)
     

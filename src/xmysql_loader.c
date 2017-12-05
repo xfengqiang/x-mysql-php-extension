@@ -89,7 +89,7 @@ ZEND_MINIT_FUNCTION(xmysql_loader){
 
 ZEND_MSHUTDOWN_FUNCTION(xmysql_loader) {
     //TODO 调整为请求生命周期
-	php_printf("xmysql close all dbs\n");
+	// php_printf("module shutdown \n");
 	xmysql_close_all_db();
 }
 
@@ -178,6 +178,7 @@ zval *xmysql_close_all_db() {
 		}ZEND_HASH_FOREACH_END();
 		
 	}ZEND_HASH_FOREACH_END();
+    php_printf("<br> cloase all dbs\n");
 }
 
 zval *get_db_config_by_name(zend_string *dbName, zend_ulong  type) {
@@ -224,7 +225,7 @@ int xmysql_loader_get_db(zval **mysqli, zend_string *dbName, zend_ulong  type) {
 	zval *db = zend_hash_index_find(Z_ARRVAL_P(dbsCache), type);
 	//已缓存
 	if(db) {
-		// php_error(E_NOTICE, "read from cache db:%s type:%d.\n", ZSTR_VAL(dbName), type);
+        // php_printf("============get db from cache============\n");
 		*mysqli = db;
 		return 1;
 	}

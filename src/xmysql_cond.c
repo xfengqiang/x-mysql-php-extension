@@ -77,9 +77,18 @@ void init_db_excaped_string(zval *db, zval *src, zval *ret) {
         ZVAL_STR(ret, strVal);
         zval_add_ref(ret);
     }else{
-         zval params[1];
-         ZVAL_STR(&params[0], strVal);
-         air_call_object_method(db, get_mysqli_class_ce(), "escape_string", ret, 1, params);
+        zval rv;
+        zval *errNo = zend_read_property(get_mysqli_class_ce(), db, ZEND_STRL("connect_errno"), 0, &rv);
+        
+        if(Z_LVAL_P(errNo) != 0) {
+            php_error(E_WARNING, "xmysql_cond params db is not conneced");
+            ZVAL_STR(ret, strVal);
+            zval_add_ref(ret);
+        }else{
+            zval params[1];
+            ZVAL_STR(&params[0], strVal);
+            air_call_object_method(db, get_mysqli_class_ce(), "escape_string", ret, 1, params);
+        }
     }
 }
 
@@ -119,7 +128,7 @@ void init_equal_cond(zval *mysqli, zval *params, zval *ret) {
     
     zval conds;
     array_init(&conds);
-     
+    
     ZEND_HASH_FOREACH_KEY_VAL(Z_ARRVAL_P(params), hashIndex, hashKey, hashData){
         char *str = NULL;
         //TODO 处理而二进制
@@ -234,11 +243,7 @@ PHP_METHOD(xmysql_cond, insert) {
         zend_update_property_string(xmysql_cond_ce, this, ZEND_STRL("oper"), "INSERT INTO");
     }
 
-    zval fd;
-    ZVAL_STRING(&fd, "fields");
-    zend_update_property_ex(xmysql_cond_ce, this, Z_STR(fd), fields);
-    zval_ptr_dtor(&fd);
-
+    zend_update_property(xmysql_cond_ce, this, ZEND_STRL("fields"), fields);    
     zend_update_property_string(xmysql_cond_ce, this, ZEND_STRL("_sql"), "");
 
     X_RETURN_THIS;

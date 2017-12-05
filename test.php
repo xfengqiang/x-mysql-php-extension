@@ -106,7 +106,7 @@ class A {
 }
 function testDb($dbs){
     xmysql_db::setGlobalCallBack('xmysql_callback');
-    xmysql_db::enbleGlobalProfile(true);
+    xmysql_db::enableGlobalProfile(true);
     $a = new A();
     // xmysql_db::setGlobalCallBack(array($a, 1));
    $db = new xmysql_db("mall");  
