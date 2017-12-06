@@ -50,21 +50,16 @@ PHP_METHOD(xmysql_cond, table) {
     
     zval cond;
     zval params[1];
-    ZVAL_NEW_STR(&params[0], table);
+    ZVAL_STR(&params[0], table);
     object_init_ex(&cond, xmysql_cond_ce);
-    
     air_call_object_method(&cond, xmysql_cond_ce, "__construct", NULL, 1, params);
     
-    RETURN_ZVAL(&cond, 1, 0);
-    
-    zval_ptr_dtor(&params[0]);
-    zval_ptr_dtor(&cond);
+    RETURN_ZVAL(&cond, 0, 0);
 }
 
 zend_class_entry *get_mysqli_result_class_ce() {
     return  (zend_class_entry *)zend_hash_str_find_ptr(EG(class_table), ZEND_STRL("mysqli_result"));
 }
-
 
 zend_class_entry *get_mysqli_class_ce() {
     return  (zend_class_entry *)zend_hash_str_find_ptr(EG(class_table), ZEND_STRL("mysqli"));
@@ -90,6 +85,7 @@ void init_db_excaped_string(zval *db, zval *src, zval *ret) {
             air_call_object_method(db, get_mysqli_class_ce(), "escape_string", ret, 1, params);
         }
     }
+    zend_string_release(strVal);
 }
 
 void init_in_cond(zval *mysqli, zval *values, zval *ret) {
@@ -164,8 +160,7 @@ PHP_METHOD(xmysql_cond, equalCond) {
 
     zval ret;
     init_equal_cond(mysqli, params, &ret);
-    RETURN_ZVAL(&ret, 1, 0);
-    zval_ptr_dtor(&ret);
+    RETURN_ZVAL(&ret, 0, 0);
 }
 
 PHP_METHOD(xmysql_cond, inCond) {
@@ -174,10 +169,10 @@ PHP_METHOD(xmysql_cond, inCond) {
     if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "a|z", &params, &mysqli)) {
         RETURN_STRING("");
     }
+
     zval ret;
     init_in_cond(mysqli, params, &ret);
-    RETURN_ZVAL(&ret, 1, 0);
-    zval_ptr_dtor(&ret);    
+    RETURN_ZVAL(&ret, 0, 0);  
 }
 
 
@@ -215,7 +210,7 @@ PHP_METHOD(xmysql_cond, select) {
     zval *this = getThis();
     zend_update_property_string(xmysql_cond_ce, this, ZEND_STRL("oper"), "SELECT");
     zend_update_property_string(xmysql_cond_ce, this, ZEND_STRL("_sql"), "");
-    zend_update_property_long(xmysql_cond_ce, this, ZEND_STRL("queryType"), QUERY_TYPE_READ);
+    zend_update_property_long(xmysql_cond_ce, this, ZEND_STRL("_queryType"), QUERY_TYPE_READ);
 
     if(!fields) {
          zend_update_property_string(xmysql_cond_ce, this, ZEND_STRL("fields"), "*");
@@ -235,7 +230,7 @@ PHP_METHOD(xmysql_cond, insert) {
     }
 
     zval *this = getThis();
-    zend_update_property_long(xmysql_cond_ce, this, ZEND_STRL("queryType"), QUERY_TYPE_WRITE);
+    zend_update_property_long(xmysql_cond_ce, this, ZEND_STRL("_queryType"), QUERY_TYPE_WRITE);
     
     if(ignoreInsert) {
         zend_update_property_string(xmysql_cond_ce, this, ZEND_STRL("oper"), "INSERT IGNORE INTO");
@@ -256,7 +251,7 @@ PHP_METHOD(xmysql_cond, update) {
     }
 
     zval *this = getThis();
-    zend_update_property_long(xmysql_cond_ce, this, ZEND_STRL("queryType"), QUERY_TYPE_WRITE);
+    zend_update_property_long(xmysql_cond_ce, this, ZEND_STRL("_queryType"), QUERY_TYPE_WRITE);
     zend_update_property_string(xmysql_cond_ce, this, ZEND_STRL("_sql"), "");
     zend_update_property(xmysql_cond_ce, this, ZEND_STRL("fields"), fields);
     zend_update_property_string(xmysql_cond_ce, this, ZEND_STRL("oper"), "UPDATE");
@@ -267,7 +262,7 @@ PHP_METHOD(xmysql_cond, update) {
 
 PHP_METHOD(xmysql_cond, del) {
     zval *this = getThis();
-    zend_update_property_long(xmysql_cond_ce, this, ZEND_STRL("queryType"), QUERY_TYPE_WRITE);
+    zend_update_property_long(xmysql_cond_ce, this, ZEND_STRL("_queryType"), QUERY_TYPE_WRITE);
     zend_update_property_string(xmysql_cond_ce, this, ZEND_STRL("_sql"), "");
     zend_update_property_string(xmysql_cond_ce, this, ZEND_STRL("oper"), "DELETE");
     zend_update_property_string(xmysql_cond_ce, this, ZEND_STRL("fields"), "");
@@ -433,8 +428,7 @@ PHP_METHOD(xmysql_cond, limit) {
 
 PHP_METHOD(xmysql_cond, getQueryType) {
     zval rv;
-
-    zval *queryType = zend_read_property(xmysql_cond_ce, getThis(), ZEND_STRL("queryType"), 0, &rv);
+    zval *queryType = zend_read_property(xmysql_cond_ce, getThis(), ZEND_STRL("_queryType"), 0, &rv);
     RETURN_ZVAL(queryType, 1, 0);
 }
 
@@ -449,7 +443,6 @@ PHP_METHOD(xmysql_cond, sql) {
     zval *sql = zend_read_property(xmysql_cond_ce, this, ZEND_STRL("_sql"), 0, &rv);
     if(Z_STRLEN_P(sql) > 0) {
         RETURN_ZVAL(sql, 1, 0);
-        return ;
     }
 
     zval *oper = zend_read_property(xmysql_cond_ce, this, ZEND_STRL("oper"), 0, &rv);
@@ -510,13 +503,15 @@ PHP_METHOD(xmysql_cond, sql) {
             zval *v = zend_hash_str_find(Z_ARRVAL_P(hashData), ZEND_STRL("v"));
            
             if(hashIdx == 0) {
-                 len =  Z_STRLEN_P(k) + Z_STRLEN_P(op) + 2;
+                len =  Z_STRLEN_P(k) + Z_STRLEN_P(op) + 2;
                 spprintf(&strCond, len, "`%s`%s", Z_STRVAL_P(k), Z_STRVAL_P(op));
                 add_index_string(&parts, idx++, strCond);
+                efree(strCond);
             }else{
                 int len =  Z_STRLEN_P(k) + Z_STRLEN_P(op) + Z_STRLEN_P(cond) + 4;
                 spprintf(&strCond, len, " %s `%s`%s ", Z_STRVAL_P(cond), Z_STRVAL_P(k), Z_STRVAL_P(op));
                 add_index_string(&parts, idx++, strCond);
+                efree(strCond);
             }
 
             if(X_ZSTR_EQUAL(op, "IN") || X_ZSTR_EQUAL(op, "NOT IN")) {
@@ -526,7 +521,7 @@ PHP_METHOD(xmysql_cond, sql) {
 
                 spprintf(&strCond, len, " (%s)", Z_STRVAL(inValues));
                 add_index_string(&parts, idx++, strCond);
-
+                efree(strCond);
                 zval_ptr_dtor(&inValues);
             }else{
                 zval escapedV;
@@ -535,14 +530,9 @@ PHP_METHOD(xmysql_cond, sql) {
 
                 spprintf(&strCond, len, "'%s'", Z_STRVAL(escapedV));
                 add_index_string(&parts, idx++, strCond);
-
+                efree(strCond);
                 zval_ptr_dtor(&escapedV);
             }
-
-            if(strCond) {
-                efree(strCond);
-            }
-
         }ZEND_HASH_FOREACH_END();
     }
     
@@ -571,12 +561,10 @@ PHP_METHOD(xmysql_cond, sql) {
     php_implode(c, &parts, &zvalRet);
     zend_update_property(xmysql_cond_ce, this, ZEND_STRL("_sql"), &zvalRet);
    
-    RETURN_ZVAL(&zvalRet, 1, 0);
     zend_string_release(c);
-    php_debug_zval_dump(zvalRet, 0);
-
-    zval_ptr_dtor(&zvalRet);
     zval_ptr_dtor(&parts);
+
+    RETURN_ZVAL(&zvalRet, 0, 0);
 }
 
 // PHP_METHOD(xmysql_cond, escapeValue) {}
@@ -618,7 +606,7 @@ ZEND_MINIT_FUNCTION(xmysql_cond)
         zend_declare_property_null(xmysql_cond_ce, ZEND_STRL("conds"), ZEND_ACC_PRIVATE TSRMLS_CC);
         zend_declare_property_null(xmysql_cond_ce, ZEND_STRL("orders"), ZEND_ACC_PRIVATE TSRMLS_CC);
         zend_declare_property_string(xmysql_cond_ce, ZEND_STRL("_sql"), "", ZEND_ACC_PRIVATE TSRMLS_CC);
-        zend_declare_property_long(xmysql_cond_ce, ZEND_STRL("queryType"), 0, ZEND_ACC_PRIVATE TSRMLS_CC);
+        zend_declare_property_long(xmysql_cond_ce, ZEND_STRL("_queryType"), 0, ZEND_ACC_PRIVATE TSRMLS_CC);
         zend_declare_property_null(xmysql_cond_ce, ZEND_STRL("page"), ZEND_ACC_PRIVATE TSRMLS_CC);
         zend_declare_property_string(xmysql_cond_ce, ZEND_STRL("oper"), "", ZEND_ACC_PRIVATE TSRMLS_CC);
         zend_declare_property_string(xmysql_cond_ce, ZEND_STRL("fields"), "*", ZEND_ACC_PRIVATE TSRMLS_CC);

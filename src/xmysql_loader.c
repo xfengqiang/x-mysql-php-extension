@@ -87,6 +87,11 @@ ZEND_MINIT_FUNCTION(xmysql_loader){
     return SUCCESS;
 }
 
+ZEND_RSHUTDOWN_FUNCTION(xmysql_loader) {
+    // php_printf("222222222 request finished \n");
+	// xmysql_close_all_db();
+}
+
 ZEND_MSHUTDOWN_FUNCTION(xmysql_loader) {
     //TODO 调整为请求生命周期
 	// php_printf("module shutdown \n");
@@ -99,7 +104,7 @@ static zval *init_get_property_by_name(const char *field) {
 		zval emptyConfig;
 		array_init(&emptyConfig);
 		zend_update_static_property(xmysql_loader_ce, field, strlen(field), &emptyConfig);
-		// zval_ptr_dtor(&emptyConfig); //添加数组成员，不需要减少引用计数
+		zval_ptr_dtor(&emptyConfig); 
 		configs = zend_read_static_property(xmysql_loader_ce, field, strlen(field), 1);
 	}
 	return configs;
@@ -144,9 +149,8 @@ void xmysql_loader_unregister_db(zend_string *dbName) {
 	    zend_string *key;
     
 	    ZEND_HASH_FOREACH_KEY_VAL(Z_ARRVAL_P(dbsCache), idx, key, val){
-                   php_printf("db ref count :%d\n",Z_REFCOUNT_P(val));
             if(Z_REFCOUNT_P(val) == 1) {
-                php_printf("close db :%d\n",idx);
+                // php_printf("close db :%d\n",idx);
                  air_call_object_method(val, Z_OBJCE_P(val), "close", NULL, 0, NULL);
             }
 		   
@@ -176,9 +180,9 @@ zval *xmysql_close_all_db() {
 		ZEND_HASH_FOREACH_KEY_VAL(Z_ARRVAL_P(val), iidx, ikey, ival){
 			air_call_object_method(ival, Z_OBJCE_P(ival), "close", NULL, 0, NULL);
 		}ZEND_HASH_FOREACH_END();
-		
 	}ZEND_HASH_FOREACH_END();
     php_printf("<br> cloase all dbs\n");
+    zend_hash_clean(Z_ARRVAL_P(allCache));
 }
 
 zval *get_db_config_by_name(zend_string *dbName, zend_ulong  type) {
@@ -206,7 +210,7 @@ zval *get_db_config_by_name(zend_string *dbName, zend_ulong  type) {
 	return config;
 }
 
-int xmysql_loader_get_db(zval **mysqli, zend_string *dbName, zend_ulong  type) {
+int xmysql_loader_get_db(zval *mysqli, zend_string *dbName, zend_ulong  type) {
     zval *dbCache = get_db_cache();
 	zval *dbsCache = zend_hash_str_find(Z_ARRVAL_P(dbCache), ZSTR_VAL(dbName), ZSTR_LEN(dbName));
 	 
@@ -226,7 +230,7 @@ int xmysql_loader_get_db(zval **mysqli, zend_string *dbName, zend_ulong  type) {
 	//已缓存
 	if(db) {
         // php_printf("============get db from cache============\n");
-		*mysqli = db;
+        ZVAL_ZVAL(mysqli, db, 0, 0);
 		return 1;
 	}
 
@@ -253,7 +257,6 @@ int xmysql_loader_get_db(zval **mysqli, zend_string *dbName, zend_ulong  type) {
 	user = zend_hash_str_find(Z_ARRVAL_P(dbConfig), ZEND_STRL("username"));
 	pass = zend_hash_str_find(Z_ARRVAL_P(dbConfig), ZEND_STRL("password"));
 	dbname = zend_hash_str_find(Z_ARRVAL_P(dbConfig), ZEND_STRL("dbname"));
-	
 	port = zend_hash_str_find(Z_ARRVAL_P(dbConfig), ZEND_STRL("port"));
 
 	params[0] = host ? *host : nil;
@@ -262,7 +265,7 @@ int xmysql_loader_get_db(zval **mysqli, zend_string *dbName, zend_ulong  type) {
 	params[3] = dbname ? *dbname : nil;
 	params[4] = port ? *port : nil;
 	
-	air_call_object_method(&_mysqli, Z_OBJCE_P(&_mysqli), "__construct", NULL, 5, params);
+	air_call_object_method(&_mysqli, Z_OBJCE(_mysqli), "__construct", NULL, 5, params);
 
 	//TODO 错误码检查，代码有问题，暂不检查
 	// zval *error_no = zend_read_property(mysqli_ce, EX(&_mysqli), ZEND_STRL("connect_errno"), 0, NULL);
@@ -275,7 +278,7 @@ int xmysql_loader_get_db(zval **mysqli, zend_string *dbName, zend_ulong  type) {
 
 	Z_TRY_ADDREF(_mysqli);
 	add_index_zval(dbsCache,  type, &_mysqli);	
-	*mysqli = &_mysqli;
+    ZVAL_ZVAL(mysqli, &_mysqli, 0, 0);
 	
 	zval_ptr_dtor(&_mysqli);
 
@@ -373,10 +376,10 @@ PHP_METHOD(xmysql_loader, getDb) {
 		RETURN_NULL();
     }
     
-    zval *db;
+    zval db;
 	if(!xmysql_loader_get_db(&db, dbName, type)) {
 		RETURN_NULL();
 	} 
 
-	RETURN_ZVAL(db, 1, 0);
+	RETURN_ZVAL(&db, 1, 0);
 }

@@ -336,7 +336,8 @@ zend_ulong xmysql_db_get_query_type(zend_string *sql, zend_ulong type) {
 int xmysql_db_get_db(zval *obj, zend_ulong type, zval *mysqli) {
     zval rv; 
     zval *inTxVal = zend_read_property(xmysql_db_ce, obj, ZEND_STRL("_inTx"), 0, &rv);
-    zend_bool inTx = Z_LVAL_P(inTxVal);
+
+    zend_bool inTx = (Z_LVAL_P(inTxVal)==IS_TRUE);
 
     if(inTx) {
         zval *lastDb = zend_read_property(xmysql_db_ce, obj, ZEND_STRL("_lastQueryDb"), 0, &rv);
@@ -348,10 +349,9 @@ int xmysql_db_get_db(zval *obj, zend_ulong type, zval *mysqli) {
     }
 
     zval *dbName = zend_read_property(xmysql_db_ce, obj, ZEND_STRL("_dbName"), 0, &rv);
-    zval params[2];
-    ZVAL_ZVAL(&params[0], dbName, 0, 0);
-    ZVAL_LONG(&params[1], type);
-    air_call_func("xmysql_loader::getDb", 2, params, mysqli);
+    
+    xmysql_loader_get_db(mysqli, Z_STR_P(dbName), type);
+  
     return 1;
 } 
 
@@ -416,8 +416,8 @@ void xmysql_db_query(zval *obj, zend_string *sql, zend_ulong type, zend_bool isR
             dbType = Z_LVAL(retVal);
             zval_ptr_dtor(&retVal);
         }
-
-        xmysql_db_get_db(obj, type, &mysqli);
+        
+        xmysql_db_get_db(obj, dbType, &mysqli);
         zval sqlVal;
         zval params[1];
         ZVAL_ZVAL(&params[0], &mysqli, 0, NULL);
@@ -436,7 +436,7 @@ void xmysql_db_query(zval *obj, zend_string *sql, zend_ulong type, zend_bool isR
     zend_update_property_string(xmysql_db_ce, obj, ZEND_STRL("_errMsg"), "");
     zend_update_property_long(xmysql_db_ce, obj, ZEND_STRL("_errNo"), 0);
     zend_update_property(xmysql_db_ce, obj, ZEND_STRL("_lastQueryDb"), &mysqli);
- 
+    
     zval rv;
     zval *gProfileEnabled = zend_read_static_property(xmysql_db_ce, ZEND_STRL("globalEnableProfile"), 0);
     zval *profileEnabled = zend_read_property(xmysql_db_ce, obj, ZEND_STRL("_enableProfile"), 0, &rv);
@@ -492,13 +492,11 @@ PHP_METHOD(xmysql_db, db){
     zval rv;
     zval *dbName = zend_read_property(xmysql_db_ce, getThis(), ZEND_STRL("_dbName"), 0, &rv);
     
-    zval *ret = NULL;
-
+    zval ret;
     if(!xmysql_loader_get_db(&ret, Z_STR_P(dbName), 1)){
         RETURN_NULL();
     }
-    
-    RETURN_ZVAL(ret, 1, 0);
+    RETURN_ZVAL(&ret, 1, 0);
 }
 
 
@@ -552,7 +550,6 @@ PHP_METHOD(xmysql_db, query){
     zval ret;
     xmysql_db_query(getThis(), sql, queryType, isRow, &ret);
     RETURN_ZVAL(&ret, 0, 0);
-    zval_ptr_dtor(&ret);
 }
 
 PHP_METHOD(xmysql_db, queryRow){
@@ -663,8 +660,7 @@ PHP_METHOD(xmysql_db, startTx){
     air_call_object_method(&mysqli, get_mysqli_class_ce(), "begin_transaction", &ret, 0, NULL);
     zend_update_property(xmysql_db_ce, getThis(), ZEND_STRL("_lastQueryDb"), &mysqli);
     zend_update_property(xmysql_db_ce, getThis(),ZEND_STRL("_inTx"), &ret);
-    RETURN_ZVAL(&ret, 1, 0);
-    zval_ptr_dtor(&ret);
+
     RETURN_ZVAL(&ret, 0, 0);
 }
 
@@ -680,8 +676,8 @@ PHP_METHOD(xmysql_db, commitTx){
     zval ret;
     air_call_object_method(db, get_mysqli_class_ce(), "commit", &ret, 0, NULL);
     zend_update_property_bool(xmysql_db_ce, getThis(), ZEND_STRL("_inTx"), 0);
-    RETURN_ZVAL(&ret, 1, 0);
-    zval_ptr_dtor(&ret);
+
+    RETURN_ZVAL(&ret, 0, 0);
 }
 
 PHP_METHOD(xmysql_db, rollbackTx){
@@ -696,8 +692,7 @@ PHP_METHOD(xmysql_db, rollbackTx){
     zval ret;
     air_call_object_method(db, get_mysqli_class_ce(), "rollback", &ret, 0, NULL);
     zend_update_property_bool(xmysql_db_ce, getThis(), ZEND_STRL("_inTx"), 0);
-    RETURN_ZVAL(&ret, 1, 0);
-    zval_ptr_dtor(&ret);   
+    RETURN_ZVAL(&ret, 0, 0); 
 }
 
 static zend_function_entry xmysql_db_methods[] = {

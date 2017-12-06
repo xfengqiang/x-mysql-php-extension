@@ -106,6 +106,7 @@ PHP_RINIT_FUNCTION(xmysql)
  */
 PHP_RSHUTDOWN_FUNCTION(xmysql)
 {
+    ZEND_RSHUTDOWN_FUNCTION(xmysql_loader);
 	return SUCCESS;
 }
 /* }}} */
