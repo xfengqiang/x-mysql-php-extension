@@ -18,6 +18,7 @@
 
 /* $Id$ */
 
+#include "php.h"
 #include "php_ini.h"
 #include "ext/standard/php_array.h"
 #include "xmysql_common.h"
