@@ -42,7 +42,8 @@ PHP_METHOD(xmysql_loader, registerDbs);
 PHP_METHOD(xmysql_loader, getDbConfig);
 PHP_METHOD(xmysql_loader, getAllConfig);
 PHP_METHOD(xmysql_loader, getDb);
-
+PHP_METHOD(xmysql_loader, closeDb);
+PHP_METHOD(xmysql_loader, closeAll);
 
 //参数声明
 /* {{{ ARG_INFO */
@@ -64,6 +65,8 @@ static zend_function_entry xmysql_loader_methods[] = {
 	PHP_ME(xmysql_loader, registerDbs, NULL, ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
 	PHP_ME(xmysql_loader, getDbConfig, NULL, ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
 	PHP_ME(xmysql_loader, getDb, NULL, ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
+    PHP_ME(xmysql_loader, closeDb, NULL, ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
+    PHP_ME(xmysql_loader, closeAll, NULL, ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
 	{NULL, NULL, NULL}
 };
 
@@ -210,6 +213,7 @@ zval *get_db_config_by_name(zend_string *dbName, zend_ulong  type) {
 	return config;
 }
 
+//这个方法返回的mysqli实例不需要进行释放
 int xmysql_loader_get_db(zval *mysqli, zend_string *dbName, zend_ulong  type) {
     zval *dbCache = get_db_cache();
 	zval *dbsCache = zend_hash_str_find(Z_ARRVAL_P(dbCache), ZSTR_VAL(dbName), ZSTR_LEN(dbName));
@@ -382,4 +386,18 @@ PHP_METHOD(xmysql_loader, getDb) {
 	} 
 
 	RETURN_ZVAL(&db, 1, 0);
+}
+
+PHP_METHOD(xmysql_loader, closeDb) {
+	zend_string *dbName = NULL;
+	if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "S", &dbName) == FAILURE) {
+		RETURN_NULL();
+    }
+    
+    xmysql_loader_unregister_db(dbName);
+}
+
+
+PHP_METHOD(xmysql_loader, closeAll) {
+    xmysql_close_all_db();
 }

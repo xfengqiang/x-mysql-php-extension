@@ -181,4 +181,4 @@ xmysql_loader::registerDbs($dbs);
 // testCond($dbs);
 testDb($dbs);
 
-
+xmysql_loader::closeAll();
